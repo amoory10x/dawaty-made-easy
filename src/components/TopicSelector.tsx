@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, Heart, Mosque } from 'lucide-react';
+import { BookOpen, Heart, Church } from 'lucide-react';
 import { arabicTopics, getAllCategories, type Topic } from '@/data/topics';
 
 interface TopicSelectorProps {
@@ -17,7 +17,7 @@ const TopicSelector = ({ onTopicSelect }: TopicSelectorProps) => {
       case 'أركان الإيمان':
         return <Heart className="w-5 h-5 text-red-600" />;
       case 'العبادات':
-        return <Mosque className="w-5 h-5 text-green-600" />;
+        return <Church className="w-5 h-5 text-green-600" />;
       case 'القرآن':
         return <BookOpen className="w-5 h-5 text-blue-600" />;
       default:
