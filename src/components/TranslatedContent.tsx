@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, Volume2, ArrowLeft } from 'lucide-react';
+import { Play, Pause, Volume2, ArrowLeft, Square } from 'lucide-react';
 import { useAudio } from '@/hooks/useAudio';
 import { FallbackTranslationService } from '@/services/translationService';
 import { getLanguageByCode } from '@/data/languages';
@@ -54,6 +54,10 @@ const TranslatedContent = ({ topic, selectedLanguage, onBack }: TranslatedConten
     }
   };
 
+  const handleStopAudio = () => {
+    stopAudio();
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-green-100 p-4">
       <div className="max-w-md mx-auto space-y-4">
@@ -96,11 +100,11 @@ const TranslatedContent = ({ topic, selectedLanguage, onBack }: TranslatedConten
             </div>
 
             {/* Audio Controls */}
-            <div className="flex justify-center">
+            <div className="flex justify-center gap-3">
               <Button
                 onClick={handlePlayAudio}
                 disabled={isLoading || isTranslating}
-                className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg"
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 text-lg"
                 size="lg"
               >
                 {isLoading ? (
@@ -108,15 +112,27 @@ const TranslatedContent = ({ topic, selectedLanguage, onBack }: TranslatedConten
                 ) : isPlaying ? (
                   <>
                     <Pause className="w-5 h-5 mr-2" />
-                    إيقاف - Stop
+                    إيقاف مؤقت
                   </>
                 ) : (
                   <>
                     <Volume2 className="w-5 h-5 mr-2" />
-                    استمع - Listen
+                    استمع
                   </>
                 )}
               </Button>
+
+              {isPlaying && (
+                <Button
+                  onClick={handleStopAudio}
+                  variant="destructive"
+                  className="px-6 py-3 text-lg"
+                  size="lg"
+                >
+                  <Square className="w-5 h-5 mr-2" />
+                  إيقاف
+                </Button>
+              )}
             </div>
 
             {/* Original Arabic (if different language selected) */}
