@@ -1,33 +1,52 @@
 
-import { useState } from "react";
-import { Search, Heart, Play, Pause, Volume2, ChevronDown } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Heart, Play, Pause, Volume2, Key, Wifi, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import LanguageSelector from "@/components/LanguageSelector";
+import { useAudio } from "@/hooks/useAudio";
+import { getLanguageByCode } from "@/data/languages";
 
 const Index = () => {
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [selectedLanguage, setSelectedLanguage] = useState("ar");
-  const [isPlaying, setIsPlaying] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [favorites, setFavorites] = useState(new Set());
+  const [apiKey, setApiKey] = useState("");
+  const [showApiDialog, setShowApiDialog] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  
+  const { toast } = useToast();
+  const { isPlaying, isLoading, playText, stopAudio, initializeAudioService } = useAudio({
+    onError: (error) => toast({ title: "خطأ في الصوت", description: error, variant: "destructive" })
+  });
 
-  const languages = [
-    { code: "ar", name: "العربية", flag: "🇸🇦" },
-    { code: "en", name: "English", flag: "🇺🇸" },
-    { code: "fr", name: "Français", flag: "🇫🇷" },
-    { code: "es", name: "Español", flag: "🇪🇸" },
-    { code: "ur", name: "اردو", flag: "🇵🇰" },
-    { code: "hi", name: "हिन्दी", flag: "🇮🇳" },
-  ];
+  // Monitor online status
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Load API key from localStorage
+  useEffect(() => {
+    const savedApiKey = localStorage.getItem('elevenlabs_api_key');
+    if (savedApiKey) {
+      setApiKey(savedApiKey);
+      initializeAudioService(savedApiKey);
+    }
+  }, [initializeAudioService]);
 
   const topics = [
     {
@@ -116,14 +135,33 @@ const Index = () => {
 
   const handleTopicSelect = (topic) => {
     setSelectedTopic(topic);
-    setIsPlaying(false);
+    stopAudio();
   };
 
-  const toggleAudio = () => {
-    setIsPlaying(!isPlaying);
-    // Here you would implement actual audio playback
-    console.log(isPlaying ? "Stopping audio" : "Playing audio");
+  const handleSaveApiKey = () => {
+    if (apiKey.trim()) {
+      localStorage.setItem('elevenlabs_api_key', apiKey);
+      initializeAudioService(apiKey);
+      setShowApiDialog(false);
+      toast({ title: "تم الحفظ", description: "تم حفظ مفتاح API بنجاح" });
+    }
   };
+
+  const handlePlayAudio = () => {
+    if (!apiKey) {
+      setShowApiDialog(true);
+      return;
+    }
+
+    if (isPlaying) {
+      stopAudio();
+    } else if (selectedTopic) {
+      const content = selectedTopic.content[selectedLanguage] || selectedTopic.content.ar;
+      playText(content, selectedLanguage);
+    }
+  };
+
+  const selectedLang = getLanguageByCode(selectedLanguage);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100">
@@ -132,7 +170,40 @@ const Index = () => {
         <div className="container mx-auto px-4 py-6">
           <div className="text-center">
             <h1 className="text-3xl font-bold mb-2">دعوة إلى الإسلام</h1>
-            <p className="text-green-100 text-lg">تطبيق الدعوة التفاعلي - Invitation to Islam</p>
+            <p className="text-green-100 text-lg">تطبيق الدعوة التفاعلي - Interactive Da'wah App</p>
+            <div className="flex items-center justify-center gap-4 mt-3">
+              <Badge variant={isOnline ? "default" : "destructive"} className="flex items-center gap-1">
+                {isOnline ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+                {isOnline ? "متصل" : "غير متصل"}
+              </Badge>
+              <Dialog open={showApiDialog} onOpenChange={setShowApiDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="border-white text-white hover:bg-white/10">
+                    <Key className="h-4 w-4 mr-2" />
+                    إعداد الصوت
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>إعداد مفتاح ElevenLabs API</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-600">
+                      لتفعيل ميزة الصوت، يرجى إدخال مفتاح API الخاص بك من ElevenLabs
+                    </p>
+                    <Input
+                      type="password"
+                      placeholder="أدخل مفتاح API"
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                    />
+                    <Button onClick={handleSaveApiKey} className="w-full">
+                      حفظ المفتاح
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </div>
       </header>
@@ -177,7 +248,7 @@ const Index = () => {
               {filteredTopics.map((topic) => (
                 <Card
                   key={topic.id}
-                  className={`cursor-pointer transition-all hover:shadow-lg border-2 ${
+                  className={`cursor-pointer transition-all hover:shadow-lg border-2 topic-card ${
                     selectedTopic?.id === topic.id
                       ? "border-green-500 bg-green-50"
                       : "border-green-200 hover:border-green-300"
@@ -229,21 +300,10 @@ const Index = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-                      <SelectTrigger className="w-full border-amber-300 focus:border-amber-500">
-                        <SelectValue placeholder="اختر اللغة" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {languages.map((lang) => (
-                          <SelectItem key={lang.code} value={lang.code}>
-                            <span className="flex items-center gap-2">
-                              <span>{lang.flag}</span>
-                              <span>{lang.name}</span>
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <LanguageSelector 
+                      selectedLanguage={selectedLanguage}
+                      onLanguageChange={setSelectedLanguage}
+                    />
                   </CardContent>
                 </Card>
 
@@ -253,27 +313,35 @@ const Index = () => {
                     <CardTitle className="text-blue-800 text-xl">
                       {selectedTopic.title}
                     </CardTitle>
-                    <Badge className="bg-blue-100 text-blue-700 w-fit">
-                      {languages.find(l => l.code === selectedLanguage)?.name}
-                    </Badge>
+                    {selectedLang && (
+                      <Badge className="bg-blue-100 text-blue-700 w-fit">
+                        {selectedLang.name} - {selectedLang.nativeName}
+                      </Badge>
+                    )}
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      <p className="text-gray-700 leading-relaxed text-lg">
-                        {selectedTopic.content[selectedLanguage]}
+                      <p className="text-gray-700 leading-relaxed text-lg" dir="auto">
+                        {selectedTopic.content[selectedLanguage] || selectedTopic.content.ar}
                       </p>
                       
                       {/* Audio Controls */}
-                      <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg audio-controls">
                         <Button
-                          onClick={toggleAudio}
+                          onClick={handlePlayAudio}
+                          disabled={isLoading}
                           className={`flex items-center gap-2 ${
                             isPlaying
                               ? "bg-red-500 hover:bg-red-600"
                               : "bg-green-500 hover:bg-green-600"
-                          }`}
+                          } ${isLoading ? "opacity-50" : ""}`}
                         >
-                          {isPlaying ? (
+                          {isLoading ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              جاري التحميل...
+                            </>
+                          ) : isPlaying ? (
                             <>
                               <Pause className="h-4 w-4" />
                               إيقاف
@@ -286,8 +354,17 @@ const Index = () => {
                           )}
                         </Button>
                         <span className="text-sm text-gray-600">
-                          {isPlaying ? "جاري التشغيل..." : "اضغط لتشغيل الصوت"}
+                          {isLoading 
+                            ? "جاري تحضير الصوت..." 
+                            : isPlaying 
+                              ? "جاري التشغيل..." 
+                              : "اضغط لتشغيل الصوت"}
                         </span>
+                        {!isOnline && (
+                          <Badge variant="outline" className="text-orange-600 border-orange-300">
+                            وضع عدم الاتصال
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </CardContent>
